@@ -2,6 +2,7 @@ package entrypoint
 
 import (
 	"UserService/internal/config"
+	httpserver "UserService/internal/http"
 	"bytes"
 	"encoding/json"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
@@ -55,6 +56,7 @@ func New(cfg *config.Config) (Entrypoint, error) {
 		ep.logger.Error("Ошибка создания Kafka producer", "error", err)
 		return nil, err
 	}
+	ep.logger.Info("Connected tt Kafka")
 
 	return ep, nil
 }
@@ -80,19 +82,27 @@ func (e *entrypoint) Run() error {
 			for {
 				test.TestNumber++
 				currentLambda := e.calculateLambda()
-				slog.Info("Текущая λ", "lambda", currentLambda)
+				e.logger.Info("Текущая λ", "lambda", currentLambda)
 
 				e.sendTest(test)
 
 				sleepTime := poissonDelay(currentLambda)
-				slog.Info("Следующий запрос через", "duration", sleepTime)
+				e.logger.Info("Следующий запрос через", "duration", sleepTime)
 
 				time.Sleep(sleepTime)
 			}
 		}(i)
 	}
 
+	server := httpserver.NewServer(":8081", e.kafkaProducer, e.cfg.Topic)
+	if err := server.Start(); err != nil {
+		slog.Error("Server failed", "error", err)
+		os.Exit(1)
+	}
+	server.Start()
+
 	wg.Wait()
+	e.logger.Info("Сервис закончил работу")
 	return nil
 }
 
@@ -144,7 +154,7 @@ func (e *entrypoint) sendTest(test Test) {
 		return
 	}
 
-	resp, err := http.Post("http://test-service:8080/tests", "application/json", bytes.NewBuffer(data))
+	resp, err := http.Post("http://localhost:8082/test", "application/json", bytes.NewBuffer(data))
 	if err != nil {
 		e.logger.Error("Ошибка отправки POST запроса", "error", err)
 		return

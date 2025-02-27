@@ -1,0 +1,13 @@
+env: "local"
+
+sources: 5
+flow_intensity: 3
+
+kafka_producer:
+  broker: "localhost:9093"
+  topic: "analytics"
+
+http_server:
+  address: "localhost:8082"
+  timeout: 4s
+  idle_timeout: 60s

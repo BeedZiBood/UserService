@@ -1,6 +1,7 @@
 package config
 
 import (
+	"flag"
 	"log"
 	"os"
 	"time"
@@ -28,9 +29,10 @@ type KafkaProducer struct {
 }
 
 func MustLoad() Config {
-	configPath := os.Getenv("CONFIG_PATH")
+	configPath := fetchConfigPath()
+
 	if configPath == "" {
-		log.Fatal("CONFIG_PATH isn't set")
+		panic("config path is empty")
 	}
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
@@ -44,4 +46,17 @@ func MustLoad() Config {
 	}
 
 	return cfg
+}
+
+func fetchConfigPath() string {
+	var result string
+
+	flag.StringVar(&result, "config", "", "path to the config")
+	flag.Parse()
+
+	if result == "" {
+		result = os.Getenv("CONFIG_PATH")
+	}
+
+	return result
 }
